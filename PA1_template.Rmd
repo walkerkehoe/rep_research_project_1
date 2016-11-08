@@ -1,0 +1,78 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+
+## Loading and preprocessing the data
+```{r, echo=TRUE}
+df <- read.csv('activity.csv', header=TRUE)
+```
+
+## What is mean total number of steps taken per day?
+```{r echo=TRUE}
+total <- tapply(df$steps, df$date, sum, na.rm=TRUE)
+hist(total, breaks=10, main="Histogram of Total Number of Steps Each Day", xlab="Steps")
+mea <- mean(total)
+med <- median(total)
+```
+The mean is `r mea` and the median is `r med`.
+
+## What is the average daily activity pattern?
+```{r echo=TRUE}
+library(ggplot2)
+interval <- aggregate(df$steps, by=list(interval=df$interval), FUN=mean, na.rm=T)
+
+plot(interval[,1],interval[,2],type='l',
+     main='Average Daily Activity Pattern',
+     xlab='Elapsed Time',
+     ylab='Average Number of Steps'
+     )
+summary(interval)
+```
+A summary of the data shows us that the 5 minute interval with the maximum average number of steps in 2355, and the value of the average is 10927 steps.
+
+## Imputing missing values
+```{r echo=TRUE}
+colSums(is.na(df))
+```
+The number of NA values in the steps column is displayed above. The following piece of code replaces NA values with the mean from that interval.
+```{r echo=TRUE}
+impute.mean <- function(x) replace(x, is.na(x), mean(x, na.rm = TRUE))
+library(dplyr)
+df<-df %>%
+      group_by(interval) %>%
+      mutate(
+        steps = impute.mean(steps)  
+      )
+```
+Below is a histogram of the filled-NA dataframe.
+```{r echo=TRUE}
+total <- tapply(df$steps, df$date, sum)
+hist(total, breaks=10, main="Histogram of Total Number of Steps Each Day, Filled NAs", xlab="Steps")
+mea <- mean(total)
+med <- median(total)
+```
+The mean is `r mea` and the median is `r med`.
+
+## Are there differences in activity patterns between weekdays and weekends?
+```{r echo=TRUE}
+library(lubridate)
+library(lattice)
+weekend <- df[wday(as.Date(df$date)) %in% 5:7,]
+weekday <- df[wday(as.Date(df$date)) %in% 1:5,]
+
+weekend <- aggregate(weekend$steps, by=list(interval=weekend$interval), FUN=mean)
+weekday <- aggregate(weekday$steps, by=list(interval=weekday$interval), FUN=mean)
+weekend$day <- rep('weekend', length(weekend))
+weekday$day <- rep('weekday', length(weekday))
+
+newdf <- rbind(weekday, weekend)
+  
+with (newdf, 
+      xyplot(x ~ interval|day, type="l", 
+             ylab="Number of steps",layout=c(1,2)))
+```
+
